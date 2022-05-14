@@ -442,25 +442,6 @@ pyplot.show()
 #names.append("LSTM")
 
 
-# Model Tuning and Grid Search
-
-# Save Model for Later Use
-# Save Model Using Pickle
-from pickle import dump
-from pickle import load
-
-# save the model to disk
-#filename = 'finalized_model.sav'
-#dump(model_fit_tuned, open(filename, 'wb'))
-"""
-#Use the following code to produce the comparison of actual vs. predicted
-predicted_tuned.index = Y_test.index
-pyplot.plot(np.exp(Y_test).cumprod(), 'r') # plotting t, a separately
-pyplot.plot(np.exp(predicted_tuned).cumprod(), 'b')
-pyplot.rcParams["figure.figsize"] = (8,5)
-pyplot.show()
-"""
-
 # estimate accuracy on validation set
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
