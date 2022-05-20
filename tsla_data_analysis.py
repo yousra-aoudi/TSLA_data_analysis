@@ -1,7 +1,7 @@
 # 1 - Problem definition
 
 """
-In the supervised regression framewor used for this data analysis case,
+In the supervised regression framework used for this data analysis case,
 the weekly return of TSLA stock is the predicted variable.
 We will try to understand what affects TSLA stock price and incorporate as much
 information into the model. In this case study, we will focus on correlated assets as features.
@@ -232,11 +232,72 @@ fig.set_figwidth(15)
 pyplot.savefig('TSLA - Trend and seasonality components.png')
 pyplot.show()
 
-# Data preparation
+# 4. Data preparation
 """
 This step of data analysis typically involves data preprocessing, data cleaning,
 looking at feature importance, and performing feature reduction.
 """
+print('dataset describe \n', dataset.describe())
+print('dataset head \n', dataset.head())
+# 4.1. - Data Cleaning
+# Checking for any null values and removing the null values
+print('Null Values =', dataset.isnull().values.any())
+
+# 4.2. - Features selection
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+from sklearn.feature_selection import f_regression
+
+Y = dataset["TSLA_pred"]
+X = dataset.loc[:, dataset.columns != 'TSLA_pred']
+bestfeatures = SelectKBest(score_func=f_regression, k=5)
+print('best features \n',bestfeatures)
+
+fit = bestfeatures.fit(X,Y)
+
+dfscores = pd.DataFrame(fit.scores_)
+dfcolumns = pd.DataFrame(X.columns)
+
+# Concat two dataframes for better visualization
+featureScores = pd.concat([dfcolumns, dfscores], axis=1)
+featureScores.columns = ['Specs', 'Score']  # naming the dataframe columns
+print(featureScores.nlargest(10, 'Score'))  # print 10 best features
+
+# 4.3. Data Transformation
+
+# 4.3.1. Rescale Data
+"""
+When your data is comprised of attributes with varying scales, many machine learning algorithms can benefit from 
+rescaling the attributes to all have the same scale. Often this is referred to as normalization and attributes are 
+often rescaled into the range between 0 and 1.
+"""
+from sklearn.preprocessing import MinMaxScaler
+scaler = MinMaxScaler(feature_range=(0, 1))
+rescaledX = pd.DataFrame(scaler.fit_transform(X))
+# Summarize transformed data
+print(rescaledX.head(5))
+
+# 4.3.2. Standardize Data
+"""
+Standardization is a useful technique to transform attributes with a Gaussian distribution and differing means and 
+standard deviations to a standard Gaussian distribution with a mean of 0 and a standard deviation of 1.
+"""
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler().fit(X)
+StandardisedX = pd.DataFrame(scaler.fit_transform(X))
+# summarize transformed data
+print(StandardisedX.head(5))
+
+# 4.3.3. Normalize Data
+"""
+Normalizing in scikit-learn refers to rescaling each observation (row) to have a length of 1 (called a unit norm or 
+a vector with the length of 1 in linear algebra).
+"""
+from sklearn.preprocessing import Normalizer
+scaler = Normalizer().fit(X)
+NormalizedX = pd.DataFrame(scaler.fit_transform(X))
+# summarize transformed data
+print(NormalizedX.head(5))
 
 # 5. Models evaluation
 # 5.1. Train-test split and evaluation metrics
@@ -279,7 +340,7 @@ to choose a model.
 
 # 5.3.1 Machine learning models from scikit-learn
 
-# Regressio and tree regression algorithms
+# Regression and tree regression algorithms
 models = []
 models.append(('LR', LinearRegression()))
 models.append(('LASSO',Lasso()))
@@ -302,10 +363,10 @@ models.append(('RFR', RandomForestRegressor()))
 models.append(('ETR', ExtraTreesRegressor()))
 
 """
-Now that we slected all the models, we will loop over each of them. 
+Now that we selected all the models, we will loop over each of them. 
 First, we run the k-fold analysis. 
 Next, we run the model on the entire training and testing dataset.
-We willl calculate the mean and standadr deviation of the evaluation metric
+We will calculate the mean and standard deviation of the evaluation metric
 for each algorithm and collect the results for model comparison later:
 """
 
@@ -437,46 +498,68 @@ pyplot.legend()
 ax.set_xticks(ind)
 ax.set_xticklabels(names)
 pyplot.ylabel('Mean Square Error')
-pyplot.savefig('Comparing the performance of various algorthims on the Train and Test Dataset.png')
+pyplot.savefig('TSLA - Comparing the performance of various algorithms on the Train and Test Dataset.png')
 pyplot.show()
 #names.append("LSTM")
 
+# 6. Model Tuning and Grid Search
+param_grid = {'alpha': [0.01, 0.1, 0.3, 0.7, 1, 1.5, 3, 5]}
+model = Lasso()
+kfold_Lasso = KFold(n_splits=num_folds, random_state=None)
+grid = GridSearchCV(estimator=model, param_grid=param_grid, scoring=scoring, cv=kfold_Lasso)
+grid_result = grid.fit(X_train, Y_train)
+print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+means = grid_result.cv_results_['mean_test_score']
+stds = grid_result.cv_results_['std_test_score']
+params = grid_result.cv_results_['params']
+for mean, stdev, param in zip(means, stds, params):
+    print("Lasso mean %f (Lasso stdev %f) with: Lasso param %r" % (mean, stdev, param))
+
+# 7.1. Finalize the model
+
+# In the last step we will check the finalized model on the test set.
+
+# Results on the test dataset.
+# prepare model
+modelLasso_tuned = Lasso(alpha=0.01)
+model_fit_tuned = modelLasso_tuned.fit(X_train,Y_train)
 
 # estimate accuracy on validation set
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
 
-# prepare model
-model_2 = Lasso()
-model_2.fit(X_train, Y_train)
-predictions_2 = model_2.predict(X_test)
+predictions_lasso_tuned = model_fit_tuned.predict(X_test)
 
-mse_Lasso = mean_squared_error(Y_test, predictions_2)
-r2_Lasso = r2_score(Y_test, predictions_2)
+mse_Lasso = mean_squared_error(Y_test, predictions_lasso_tuned)
+r2_Lasso = r2_score(Y_test, predictions_lasso_tuned)
 print("MSE Regression = %f " % (mse_Lasso))
 print("R2 Regression = %f " % (r2_Lasso))
 
-#Predictions - Lasso
-train_size = int(len(X) * (1-validation_size))
-X_train, X_test = X[0:train_size], X[train_size:len(X)]
-Y_train, Y_test = Y[0:train_size], Y[train_size:len(X)]
+# plotting the actual data versus predicted data
+backtestdata = pd.DataFrame(index=Y_test.index)
+backtestdata['actual'] = np.exp(Y_test).cumprod()
+backtestdata['predicted'] = np.exp(predictions_lasso_tuned).cumprod()
+pyplot.plot(backtestdata['actual'], 'r', label='actual',)
+pyplot.plot(backtestdata['predicted'], 'b--', label='predicted')
+pyplot.legend()
+pyplot.rcParams["figure.figsize"] = (15,15)
+pyplot.savefig('TSLA - Lasso model - actual data versus predicted data.png')
+pyplot.show()
 
-model_lasso = Lasso()
-model_lasso = model_lasso.fit(X_train, Y_train)
+# 7.2. Save Model for Later Use
+# Save Model Using Pickle
+from pickle import dump
+from pickle import load
+
+# save the model to disk
+filename = 'tsla_finalized_model.sav'
+dump(model, open(filename, 'wb'))
+# some time later...
+# load the model from disk
+loaded_model = load(open(filename, 'rb'))
+# estimate accuracy on validation set
+#rescaledValidationX = scaler.transform(X_validation) #in case the data is scaled.
+#predictions = model.predict(rescaledValidationX)
 predictions = model.predict(X_test)
-
-#Create column for Strategy Returns by multiplying the daily returns by the po
-#of business the previous day
-backtestdata = pd.DataFrame(index=X_test.index)
-print('X_test \n', X_test.tail())
-print('Y_test \n', Y_test.tail())
-#backtestdata = pd.DataFrame()
-backtestdata['close_pred'] = predictions
-backtestdata['close_actual'] = Y_test
-backtestdata['Market Returns'] = X_test['TSLA_DT'].pct_change()
-backtestdata['Actual Returns'] = backtestdata['Market Returns'] * backtestdata
-backtestdata['Strategy Returns'] = backtestdata['Market Returns'] * backtestda
-#backtestdata=backtestdata.reset_index()
-backtestdata.head()
-backtestdata[['Strategy Returns','Actual Returns']].cumsum().hist()
-backtestdata[['Strategy Returns','Actual Returns']].cumsum().plot()
+result = mean_squared_error(Y_test, predictions)
+print(result)
