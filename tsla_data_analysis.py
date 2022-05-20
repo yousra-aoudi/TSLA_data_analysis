@@ -9,7 +9,7 @@ For upcoming study cases, we will use technical indicators and fundamental analy
 
 For this case study, other than the historical data of TSLA, the independent variables
 used are the following correlated assets:
- -> Stocks: NIO and GM
+ -> Stocks: F and GM
  -> Currency : USD/JPY and GBP/USD
  -> Indices : S&P 500, Dow Jones, and VIX
 
